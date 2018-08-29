@@ -205,8 +205,8 @@ def test_fit(SF, x_range, y_range, matrix_z):
     '''
     xx,yy,zz=[],[],[]
     m0,n0 = [],[]
-    for m in np.arange(0,len(x_range),step=6):
-        for n in np.arange(0,len(y_range)):
+    #for m in np.arange(0,len(x_range),step=6):
+    #    for n in np.arange(0,len(y_range)):
     for m,n in itertools.product(np.arange(0,len(x_range),step=6),np.arange(0,len(y_range))):
         a_=float(x_range[m]) # = Ha
         b_=float(y_range[n]) # = Hb
@@ -224,7 +224,7 @@ def test_fit(SF, x_range, y_range, matrix_z):
             b_ = y_range[n-s]
             #for i in np.arange(2*SF+1):
             #    for j in np.arange(2*SF+1):
-            for i,j in itertools.product(np.arange(2*SF+1, np.arange(2*SF+1))
+            for i,j in itertools.product(np.arange(2*SF+1), np.arange(2*SF+1)):
                 try:
                     grid_data.append([x_range[m+s+i],y_range[n-s-j],matrix_z.item(m+s+i,n-s-j)])
                 except Exception as e:
