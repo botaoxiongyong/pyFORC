@@ -17,5 +17,5 @@ inlcuding irregualr forc, and remforc (developing)
         
 # Runing
 
-        $ python3 -m pyFORC /data_directory/irgular_forc_file.txt 5
+        $ python3 -m pyFORC_log /data_directory/irgular_forc_file.txt 5
         #5 is the default smooth factor, change by yourself.
