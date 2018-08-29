@@ -19,5 +19,5 @@ inlcuding irregualr forc, and remforc (developing)
 
         $ python3 -m pyFORC_log /data_directory/irgular_forc_file.txt 5
         #5 is the default smooth factor, change by yourself.
-#Warning
+# Warning
         !only tested on Ubuntu 16.04
