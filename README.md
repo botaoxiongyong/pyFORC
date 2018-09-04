@@ -1,4 +1,6 @@
 # pyFORC
+![alt text](https://github.com/botaoxiongyong/pyFORC/blob/master/example/Screenshot%20from%202018-09-04%2015-10-33.png)
+
 this is for first order reversal curves
 inlcuding irregualr forc, and remforc (developing)
 
@@ -14,7 +16,7 @@ inlcuding irregualr forc, and remforc (developing)
 
         # in the same derectory
         $ python3 setup.py install
-        
+
 # Runing
 
         $ python3 -m pyFORC_log /data_directory/irgular_forc_file.txt 5
