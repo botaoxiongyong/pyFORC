@@ -281,7 +281,7 @@ def test_fit(SF, x_range, y_range, matrix_z):
     '''
     #X = np.linspace(0,0.15,400)
     #Y = np.linspace(-0.1,0.1,400)
-    xi,yi = np.mgrid[0:0.15:400j,-0.1:0.1:400j]
+    xi,yi = np.mgrid[0:0.2:400j,-0.15:0.15:400j]
     z = df.z/np.max(df.z)
     z = np.asarray(z.tolist())
     #Z = matplotlib.mlab.griddata(df.x,df.y,z,X,Y,interp='linear')
@@ -299,11 +299,18 @@ def test_fit(SF, x_range, y_range, matrix_z):
     #print(Z)
     #=================================================
     '''
-    plt.contour(xi,yi,Z,9,colors='k',linewidths=0.5)
+    fig = plt.figure(figsize=(6,5), facecolor='white')
+    fig.subplots_adjust(left=0.18, right=0.97,
+                    bottom=0.18, top=0.9, wspace=0.5, hspace=0.5)
+    #ax = fig.add_subplot(1,1,1)
+    plt.contour(xi*1000,yi*1000,Z,9,colors='k',linewidths=0.5)#mt to T
     #plt.pcolormesh(X,Y,Z_a,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-    plt.pcolormesh(xi,yi,Z,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
+    plt.pcolormesh(xi*1000,yi*1000,Z,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
     plt.colorbar()
-    plt.xlim(0,0.15)
+    #plt.xlim(0,0.15)
+    #plt.ylim(-0.1,0.1)
+    plt.xlabel('B$_{c}$ (mT)',fontsize=12)
+    plt.ylabel('B$_{i}$ (mT)',fontsize=12)
 
     plt.show()
 def d2_func(x, y, z):
@@ -351,8 +358,6 @@ def main():
     fileAdres = sys.argv[1]
     SF = int(sys.argv[2])
     SF = SF if isinstance(SF,int) else 5 #defualt SF=5
-    #SF=5
-    #Fit(fileAdres,SF)
     #fileAdres='./ps97-085-3-d472_9.irforc'
     if fileAdres!='':
         try:
