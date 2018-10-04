@@ -96,6 +96,9 @@ class dataLoad_rem(object):
 
         self.rawdf = df
 
+        #plt.scatter(self.x,self.y,c=self.z)
+        #plt.show()
+
 
     def matrix(self):
         '''

@@ -89,7 +89,6 @@ class dataLoad_rem(object):
                     self.x.append(H_rem_seg[t]/1000)
                     self.y.append(H_rem_a/1000)
                     self.z.append(M_rem_seg[t])
-                    #print(M_rem_seg[t])
                     #self.z.append(M_seg)
 
                 H_tf_a = H_tf_seg[0]
@@ -97,29 +96,35 @@ class dataLoad_rem(object):
 
         self.rawdf = df
 
-        dft = pd.DataFrame({'x':self.x,'y':self.y,'z':self.z})
+        #dft = pd.DataFrame({'x':self.x,'y':self.y,'z':self.z})
         #print(dft)
-        dft = dft.pivot_table(columns='x',index='y',values='z')
+        #dft = dft.pivot_table(columns='x',index='y',values='z')
         #print(dft)
         #print(dft.iloc[0].isnull())
-        dft = dft.loc[:, dft.iloc[0].notnull()]
+        #dft = dft.loc[:, dft.iloc[0].notnull()]
         #dft = dft[dft.columns[abs(df.sum())>1*10**-8]]
         #print(dft)
-        zi = dft.values
+        #zi = dft.values
         #print(dft.columns)
         #print(zi.shape)
+        #bc = [(a-b)/2 for a,b in zip(dft.columns,np.unique(self.y))]
+        #bi = [(a+b)/2 for a,b in zip(dft.columns,np.unique(self.y))]
+        #print(bc)
 
         #ncols = len(np.unique(self.x))
         #nrows = len(np.unique(self.y))
 
         #print(np.unique(self.x))
         #zi = np.array(self.z)
-        xi,yi = np.meshgrid(dft.columns,np.unique(self.y))
+        #xi,yi = np.meshgrid(dft.columns,np.unique(self.y))
         #print(xi)
         #Z = zi.reshape(xi.shape)
 
-        plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))
-        plt.show()
+        #plt.scatter(xi,yi)
+        #plt.show()
+
+        #plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))
+        #plt.show()
 
         #print(np.reshape(np.array(self.z), (nrows,ncols)))
 
@@ -135,14 +140,24 @@ class dataLoad_rem(object):
 
         #print(zi.shape)
 
-        X = np.linspace(-0.2,0.3,200)
-        Y = np.linspace(-0.2,0.3,200)
-        xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
+        #X = np.linspace(-0.2,0.3,200)
+        #Y = np.linspace(-0.2,0.3,200)
+        #xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
 
-        zt=griddata((dft.columns,np.unique(self.y)),zi,(xi,yi),method='cubic')
+        #X = np.hstack([np.geomspace(-0.1,-0.001,100),np.geomspace(0.001,0.1,100)])
+        self.z = self.z/np.max(self.z)
+        X = np.linspace(-0.15,0.15,200)
+        #X = np.hstack([np.geomspace(-0.2,-0.001,100),np.geomspace(0.001,0.2,100)])
+        Y = X
+        xi,yi = np.meshgrid(X,Y)
+
+        zt=griddata((self.x,self.y),self.z,(yi.T,xi.T),method='linear',fill_value=np.nan)
         self.matrix_z =zt
         self.x_range=X
         self.y_range=Y
+
+        plt.pcolormesh(yi.T,xi.T,zt,cmap=plt.get_cmap('rainbow'))
+        plt.show()
 
 
 
@@ -204,10 +219,11 @@ class Fit(object):
         m0,n0 = [],[]
         #for m in np.arange(0,len(x_range),step=6):
         #    for n in np.arange(0,len(y_range)):
-        for m,n in itertools.product(np.arange(0,len(x_range)),np.arange(0,len(y_range))):
-            a_=float(x_range[m]) # = Ha
-            b_=float(y_range[n]) # = Hb
-            if abs(a_-b_) < 0.001: # Ha nearly equal Hb
+        for m,n in itertools.product(np.arange(0,len(x_range),step=SF),np.arange(0,len(y_range),step=SF)):
+            #a_=float(x_range[m]) # = Ha
+            #b_=float(y_range[n]) # = Hb
+            if x_range[m]>y_range[n]: # Ha nearly equal Hb
+                #print(x_range[m],y_range[n])
                 m0.append(m)
                 n0.append(n)
         print(len(m0))
@@ -215,44 +231,54 @@ class Fit(object):
         #print(x_range[0],y_range[0],matrix_z.item(1,1))
 
         #for m in m0:
+        aa,bb,cc = [],[],[]
         #    for n in n0:
-        for m,n in itertools.product(m0,n0):
+        for m,n in zip(m0,n0):
             #for s in [-1,0,1]: #forc to select data around
-            try:
-                grid_data = []
-                a_ = x_range[m]
-                b_ = y_range[n]
-                #for i in np.arange(2*SF+1):
-                #    for j in np.arange(2*SF+1):
-                for i,j in itertools.product(np.arange(2*SF+1), np.arange(2*SF+1)):
-                    try:
+            grid_data = []
+            a_ = x_range[m]
+            b_ = y_range[n]
 
-                        #if matrix_z.item(m+i,n-j)!=0:
-                            #print(matrix_z.item(m+i,n-j))
-                        grid_data.append([x_range[m+i],y_range[n-j],matrix_z.item(m+i,n-j)])
-                    except Exception as e:
-                        pass
-                #print(grid_data)
-                '''
-                #=================================================
-                /when SF = n
-                /data grid as (2*n+1)x(2*n+1)
-                /every grid produce on FORC distritution p
-                /the fitting use d2_func
-                /test_lmf for process data
-                #=================================================
-                '''
-                x,y,z = test_lmf(grid_data)
+            #for i in np.arange(2*SF+1):
+            #    for j in np.arange(2*SF+1):
+            #print(matrix_z.item(n,m))
+            if matrix_z.item(n,m)!=np.nan:
+                #print('true')
+                aa.append(a_)
+                bb.append(b_)
+                cc.append(matrix_z.item(n,m))
+
+
                 try:
-                    p = d2_func(x,y,z)
-                    #print(p)
-                    xx.append((a_-b_)/2)
-                    yy.append((a_+b_)/2)
-                    zz.append(p)
-                except Exception as e:
-                    #print(e)
-                    pass
-            except:
+                    for i,j in itertools.product(np.arange(2*SF+1), np.arange(2*SF+1)):
+
+                        grid_data.append([x_range[m+i],y_range[n-j],matrix_z.item(n-j,m+i)])
+                except: #Exception as e:
+                    try:
+                        for i,j in itertools.product(np.arange(3), np.arange(3)):
+
+                            grid_data.append([x_range[m+i],y_range[n-j],matrix_z.item(n-j,m+i)])
+                    except:
+                        pass
+            #print(grid_data)
+            '''
+            #=================================================
+            /when SF = n
+            /data grid as (2*n+1)x(2*n+1)
+            /every grid produce on FORC distritution p
+            /the fitting use d2_func
+            /test_lmf for process data
+            #=================================================
+            '''
+            x,y,z = test_lmf(grid_data)
+            try:
+                p = d2_func(x,y,z)
+                #print(p)
+                xx.append((a_-b_)/2)
+                yy.append((a_+b_)/2)
+                zz.append(p)
+            except:# Exception as e:
+                #print(e)
                 pass
         '''
         #=================================================
@@ -260,7 +286,9 @@ class Fit(object):
         /all the data with nan values will be delete be dropna()
         #=================================================
         '''
-        #print(zz)
+        #plt.scatter(aa,bb,c=cc)
+        #plt.show()
+        #print(xx)
         df = pd.DataFrame({'x':xx,'y':yy,'z':zz})
         #df = df.replace(0,np.nan)
         df = df.dropna()
@@ -270,14 +298,21 @@ class Fit(object):
         /the Bi values when Bc <0.003 will be mirrored to -Bc
         #=================================================
         '''
-        df_negative = df[(df.x<0.1)].copy()
+        #print(df['z'])
+
+        #plt.scatter(df.x,df.y,c=df.z)
+        #plt.show()
+        print(len(df['x']))
+
+        df_negative = df[(df['x']<0.01)].copy()
         #df_negative['x'] = df_negative['x'].apply(lambda x: x*-1)
         df_negative.x = df_negative.x*-1
         df = df.append(df_negative)
         df = df.drop_duplicates(['x','y'])
         df = df.sort_values('x')
-        plt.scatter(df.x,df.y,c=df.z)
-        plt.show()
+        print(len(df['x']))
+        #plt.scatter(df.x,df.y,c=df.z)
+        #plt.show()
         '''
         #=================================================
         /reset the Bc and Bi range by X,Y
@@ -287,14 +322,21 @@ class Fit(object):
         #X = np.linspace(0,0.15,400)
         #Y = np.linspace(-0.1,0.1,400)
 
-        self.xi,self.yi = np.mgrid[0:0.2:200j,-0.15:0.15:200j]
+        #self.xi,self.yi = np.mgrid[0:0.2:200j,-0.15:0.15:200j]
         z = df.z/np.max(df.z)
         z = np.asarray(z.tolist())
+
+        #X = np.arange(-0.15,0.15,400)#np.hstack([np.geomspace(-0.15,-0.001,100),np.geomspace(0.001,0.15,100)])
+        #Y = X#np.hstack([np.arange(0,0.02,50),np.geomspace(0.001,0.15,50)])
+        #xi,yi = np.meshgrid(X,Y)
+        #self.xi=yi.T
+        #self.yi=xi.T
+        self.xi,self.yi = np.mgrid[0:0.2:400j,-0.15:0.15:400j]
         #Z = matplotlib.mlab.griddata(df.x,df.y,z,X,Y,interp='linear')
         #matplotlib 2.2 was expiered
-        #plt.scatter(df.x,df.y,c=z)
-        #plt.show()
-        self.Z = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
+        plt.scatter(df.x,df.y,c=z)
+        plt.show()
+        self.Z = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic', fill_value=np.nan)
         '''
         #=================================================
         /if using log space for X,Y
