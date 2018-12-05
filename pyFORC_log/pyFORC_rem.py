@@ -16,6 +16,111 @@ from matplotlib import pyplot as plt
 import pandas as pd
 from scipy.interpolate import griddata
 import time
+#from pyFORC_log import Fit
+
+class dataLoad_rem(object):
+    '''
+    #=================================================
+    /process the measured forc data.
+    /converte the raw data into matrix
+    /with x range and y range
+    /empty postion replaced with np.nan
+    #=================================================
+    '''
+    def __init__(self,fileAdres=None):
+        self.rawData(fileAdres)
+        self.matrix()
+
+    def rawData(self,fileAdres=None):
+        #skip skiprows
+        skip_from = '    Field         Moment   '
+        with open(fileAdres,'rb') as fr:
+            #f = fr.read()
+            for i,line in enumerate(fr,1):
+                #print(line)
+                if skip_from in str(line):
+                    skiprows=i+2
+                    break
+                #else:
+                #    print('file format wrong, cannot find the data row.')
+        skiprows = skiprows if isinstance(skiprows,int) else 1
+        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
+                         delimiter=',', names=['H','M'], skipfooter=1,
+                         engine='python')
+
+        df['H'] = df['H']*1000
+        df['H'] = df['H'].astype(np.int)
+        index = []
+        for i in np.arange(1,len(df['H'])):
+            #print(df['H'][i],df['H'][i-1])
+            if df['H'][i] == df['H'][i-1]:
+                #print('true')
+                index.append(i)
+            else:
+                pass
+
+        df = df.drop(df.index[index])
+        '''
+        #=================================================
+        /datainterval_H/_M
+        /slice the measured data into pieces
+        /for every measured FORC
+        #=================================================
+        '''
+        dataInterval_H=[]
+        dataInterval_M=[]
+        #print(H)
+        H,M = df['H'].values,df['M'].values
+        satField = df['H'][0]
+        H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg,M_seg = [],[],[],[],[]
+        #print(satField)
+        self.x,self.y,self.z=[[],[],[]]
+        for i in np.arange(1,len(H)-1):
+            if H[i] == 0:
+                H_rem_seg.append(H[i-1])
+                M_rem_seg.append(M[i])
+            else:
+                H_tf_seg.append(H[i])
+                M_tf_seg.append(M[i])
+            if H[i] == satField:
+                H_rem_a = H_rem_seg[1] if len(H_rem_seg)>1 else H_rem_seg[0]
+                #print(H_rem_seg)
+                for t in range(len(H_rem_seg)):
+                    self.x.append(H_rem_seg[t]/1000)
+                    self.y.append(H_rem_a/1000)
+                    self.z.append(M_rem_seg[t])
+                    #self.z.append(M_seg)
+
+                H_tf_a = H_tf_seg[0]
+                H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg,M_seg = [],[],[],[],[]
+
+        self.rawdf = df
+
+        #plt.scatter(self.x,self.y,c=self.z)
+        #plt.show()
+
+
+    def matrix(self):
+        '''
+        #=================================================
+        transfer the data set to matrix as len(x)*len(y) with z value
+        :return:
+        #=================================================
+        '''
+
+        X = np.linspace(-0.2,0.3,200)
+        Y = np.linspace(-0.2,0.3,200)
+        xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
+
+        zi=griddata((self.x,self.y),self.z,(xi,yi),method='cubic')
+        self.matrix_z =zi
+        self.x_range=X
+        self.y_range=Y
+
+        #print(xi)
+
+        #plt.matshow(zi)
+        #plt.show()
 
 class Fit(object):
     def __init__(self,irData=None,SF=None):
@@ -53,26 +158,29 @@ class Fit(object):
         m0,n0 = [],[]
         #for m in np.arange(0,len(x_range),step=6):
         #    for n in np.arange(0,len(y_range)):
-        for m,n in itertools.product(np.arange(0,len(x_range),step=6),np.arange(0,len(y_range))):
+        for m,n in itertools.product(np.arange(0,len(x_range),step=2*SF+1),np.arange(0,len(y_range),step=2*SF+1)):
             a_=float(x_range[m]) # = Ha
             b_=float(y_range[n]) # = Hb
             if abs(a_-b_) < 0.0001: # Ha nearly equal Hb
                 m0.append(m)
                 n0.append(n)
+        #print(len(m0))
+
+        #print(x_range[0],y_range[0],matrix_z.item(1,1))
 
         #for m in m0:
         #    for n in n0:
-        for m,n,s in itertools.product(m0,n0,[-1,0,1]):
+        for m,n in itertools.product(m0,n0):
             #for s in [-1,0,1]: #forc to select data around
             try:
                 grid_data = []
-                a_ = x_range[m+s]
-                b_ = y_range[n-s]
+                a_ = x_range[m]
+                b_ = y_range[n]
                 #for i in np.arange(2*SF+1):
                 #    for j in np.arange(2*SF+1):
-                for i,j in itertools.product(np.arange(3*SF+1), np.arange(3*SF+1)):
+                for i,j in itertools.product(np.arange(2*SF+1), np.arange(2*SF+1)):
                     try:
-                        grid_data.append([x_range[m+s+i],y_range[n-s-j],matrix_z.item(m+s+i,n-s-j)])
+                        grid_data.append([x_range[m+i],y_range[n-j],matrix_z.item(m+i,n-j)])
                     except Exception as e:
                         pass
                 #print(grid_data)
@@ -129,6 +237,7 @@ class Fit(object):
         '''
         #X = np.linspace(0,0.15,400)
         #Y = np.linspace(-0.1,0.1,400)
+
         self.xi,self.yi = np.mgrid[0:0.2:400j,-0.15:0.15:400j]
         z = df.z/np.max(df.z)
         z = np.asarray(z.tolist())
@@ -164,169 +273,6 @@ class Fit(object):
         plt.ylabel('B$_{i}$ (mT)',fontsize=12)
 
         plt.show()
-
-class dataLoad(object):
-    '''
-    #=================================================
-    /process the measured forc data.
-    /converte the raw data into matrix
-    /with x range and y range
-    /empty postion replaced with np.nan
-    #=================================================
-    '''
-    def __init__(self,fileAdres=None):
-        self.rawData(fileAdres)
-        self.matrix()
-        #self.rawDataPlot()
-        self.initial()
-    def rawDataPlot(self):
-        '''
-        /plot the measured data
-        '''
-        #plt.scatter(self.x, self.y,c=self.z,cmap=plt.cm.rainbow,linewidths=0.1, s=5)
-        plt.scatter(self.matrix_z)
-        plt.show()
-    def initial(self):
-        '''
-        /to transfer the data for fitting
-        '''
-        return self.matrix_z,self.x_range,self.y_range
-    def rawData(self,fileAdres=None):
-        #skip skiprows
-        skip_from = '    Field         Moment   '
-        with open(fileAdres,'rb') as fr:
-            #f = fr.read()
-            for i,line in enumerate(fr,1):
-                #print(line)
-                if skip_from in str(line):
-                    skiprows=i+2
-                    break
-                #else:
-                #    print('file format wrong, cannot find the data row.')
-        skiprows = skiprows if isinstance(skiprows,int) else 1
-        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
-                         delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python')
-        #print(df)
-        #plt.scatter(df['H'],df['M']/df['M'].max())
-        #plt.show()
-        H = df.H    #measured field
-        M = df.M    #measured magnetic moment
-        '''
-        #=================================================
-        /datainterval_H/_M
-        /slice the measured data into pieces
-        /for every measured FORC
-        #=================================================
-        '''
-        dataInterval_H=[]
-        dataInterval_M=[]
-        #print(H)
-        '''
-        /x = Hb
-        /y = Ha
-        /z = Hm
-        '''
-        cretia = df.H.mean()##edge of linear programing for selecting data
-        H0 = df.H.max() # the maximum field
-        self.x,self.y,self.z=[[],[],[]]
-        for i in np.arange(1,len(H)):
-            dataInterval_H.append(H[i])
-            dataInterval_M.append(M[i])
-            if abs(H[i]-H0)<=0.001: #when the filed reach the max, a new forc
-                if len(dataInterval_H)>=0 and len(dataInterval_H)<=200:
-                    #print(dataInterval_H)
-                    Ha=dataInterval_H[0]
-                    dataInterval_H.pop(-1)
-                    dataInterval_M.pop(-1)
-                    Hb=dataInterval_H[1:-1]
-                    Hm=dataInterval_M[1:-1]
-                    for t in np.arange(len(Hb)):
-                        self.x.append(Hb[t])
-                        self.y.append(Ha)
-                        self.z.append(Hm[t])
-                        #print(Ha)
-                dataInterval_H=[]
-                dataInterval_M=[]
-        #plt.scatter(self.x,self.y,c=self.z)
-        #plt.show()
-        self.rawdf = df
-    def matrix(self):
-        '''
-        #=================================================
-        transfer the data set to matrix as len(x)*len(y) with z value
-        :return:
-        #=================================================
-        '''
-        #df = pd.DataFrame({'x':self.x,'y':self.y,'z':self.z},dtype=np.float)
-        #df = df.sort_values(by=['x','y'])
-        '''
-        #=================================================
-        /this is another method for construct matrix
-        /since irregular FORC in log space
-        #=================================================
-        #x_duplicate = df['x'].drop_duplicates().tolist()
-        #y_duplicate = df['y'].drop_duplicates().tolist()
-        #self.matrix_z = np.zeros(shape=(int(len(x_duplicate)), int(len(y_duplicate))))
-        #for i in np.arange(len(x_duplicate)):
-        #    dx = df[df.x == x_duplicate[i]]
-        #    for j in np.arange(len(y_duplicate)):
-        #        if y_duplicate[j] in dx.y.tolist():
-        #            dxy = dx[dx.y == y_duplicate[j]]
-        #            self.matrix_z[i,j]=dxy['z'].values[0]
-        #        else:
-        #            self.matrix_z[i,j]=0
-        #            pass
-        #self.x_range = x_duplicate
-        #self.y_range = y_duplicate
-        #plt.scatter(df.x,df.y,c=df.z)
-        #plt.show()
-        #=================================================
-        '''
-        #df = df.drop_duplicates(['x','y'])
-        '''
-        #=================================================
-        /mesh up the rawdata
-        /select the data area by X,Y ranges
-        /obtain regular spaced data potins by np.linspace
-        /use interplote to caculate the Hm values
-        /loop Ha(Y),Hb(X)
-        /fill every position with Hm, else with np.nan
-        #=================================================
-        '''
-        X = np.linspace(-0.2,0.3,200)
-        Y = np.linspace(-0.2,0.3,200)
-        xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
-        #Z = matplotlib.mlab.griddata(df.x,df.y,df.z,X,Y,interp='linear')
-        #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
-
-        zi=griddata((self.x,self.y),self.z,(xi,yi),method='linear')
-        #plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        #plt.show()
-        '''
-        #=================================================
-        /abandon method to creat matrix_z
-        /due to matplotlib.mlab.gridata expiered
-        /the scipy.gridata can creat matrix,
-        /but note the method used have to be 'linear'
-        #=================================================
-        self.matrix_z = np.zeros(shape=(len(xi),len(yi)))
-        for m in np.arange(0,len(xi)):
-            for n in np.arange(0,len(yi)):
-                if isinstance(zi[m][n],np.NaN):
-                    self.matrix_z[n,m]=zi[m][n]
-                else:
-                    self.matrix_z[n,m]=np.nan
-        #=================================================
-        '''
-        self.matrix_z = zi
-        self.x_range=X
-        self.y_range=Y
-
-        #plt.matshow(zi)
-        #plt.show()
-
-
 def d2_func(x, y, z):
     '''
     #=================================================
@@ -341,6 +287,7 @@ def d2_func(x, y, z):
     B = Z.flatten()
     #print(A.shape,B.shape)
     coeff, r, rank, s = np.linalg.lstsq(A, B, rcond=None)
+    #print(coeff)
     return -coeff[5]
 
 def test_lmf(data):
@@ -366,18 +313,18 @@ def test_lmf(data):
     #print(a.shape,b.shape,M.shape)
     #params = [0.1,0.1,0.1,0.1,0.1,0.1]
     return a, b, M
-
 def main():
     #start_time = time.time()
     fileAdres = sys.argv[1]
     SF = int(sys.argv[2])
     SF = SF if isinstance(SF,int) else 5 #defualt SF=5
     #fileAdres='./ps97-085-3-d472_9.irforc'
-    #Fit(dataLoad(fileAdres),SF).plot()
+    #dataLoad_rem(fileAdres)
+    Fit(dataLoad_rem(fileAdres),SF).plot()
     if fileAdres!='':
         try:
-            Fit(dataLoad(fileAdres),SF).plot()
             pass
+            #Fit(dataLoad(fileAdres),SF).plot()
         except Exception as e:
             print(e)
             pass

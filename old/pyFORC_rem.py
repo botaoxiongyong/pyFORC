@@ -42,7 +42,7 @@ class dataLoad(object):
         '''
         return self.matrix_z,self.x_range,self.y_range
     def rawData(self):
-        df = pd.read_csv('./ps97-085-3-d472_9.remforc', skiprows=2, sep='\s+',
+        df = pd.read_csv('./example/ps97-085-3-d472_9.remforc', skiprows=2, sep='\s+',
                          delimiter=',', names=['H','M'], skipfooter=1,
                          engine='python')
         H = df.H    #measured field
@@ -170,7 +170,7 @@ def test_fit(SF, x_range, y_range, matrix_z):
     print(len(m0),len(n0))
     for m in m0:
         for n in n0:
-            for s in [-1,0,1]: #forc to select data around 
+            for s in [-1,0,1]: #forc to select data around
                 try:
                     grid_data = []
                     a_ = x_range[m+s]
