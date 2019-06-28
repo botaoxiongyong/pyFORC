@@ -18,25 +18,64 @@ from scipy.interpolate import griddata
 import time
 
 class Fit(object):
-    def __init__(self,irData=None,SF=None):
+    def __init__(self,irData=None,SF=None,fileAdres=None):
         '''
         #=================================================
         /process the raw data
         /do the fit
         #=================================================
         '''
-        self.rawData = irData#dataLoad(fileAdres)
-        #self.matrix_z,self.x_range,self.y_range=dataLoad(fileAdres).initial()
-        if self.rawData !=None:
-            self.fit(SF)
-        else:
-            pass
-    def fit(self,SF=None):
+        self.dfraw = dataLoad(fileAdres).rawData()
+        #print(self.dfraw)
+        self.SF = SF
+
+        self.fit()
+
+    def fit(self):
         #SF=5
         #print(self.matrix_z.shape)
         #test
-        self.test_fit(SF = SF, x_range = self.rawData.x_range, y_range = self.rawData.y_range,
-                 matrix_z = self.rawData.matrix_z)
+        #self.test_fit(SF = SF, )
+
+
+        dfmatrix = self.dfraw.pivot(index="ha",
+                                    columns="hb",
+                                    values="hm")
+        #print(dfmatrix.iloc[0])
+        #dfmatrix = dfmatrix.loc[:,~(dfmatrix.iloc[0]==np.nan).any()]
+        s = dfmatrix.iloc[0]
+
+        si = [i for i in range(s.shape[0]) if np.isnan(s.iloc[i])]
+
+        #dfmatrix = dfmatrix.drop(dfmatrix.columns[si],axis=1)
+
+        #print(dfmatrix)
+        dfmatrix = dfmatrix.iloc[::-1]
+
+        dfmatrix.to_csv("dfmatrix.csv")
+        matrix_z = dfmatrix.values
+        #print(matrix_z.shape)
+        plt.imshow(matrix_z)
+        plt.show()
+        print(matrix_z)
+
+        X = np.linspace(-150,150,500)
+        Y = np.linspace(-150,150,500)
+        xi,yi = np.mgrid[-150:150:500j,-150:150:500j]
+        #Z = matplotlib.mlab.griddata(df.x,df.y,df.z,X,Y,interp='linear')
+        #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
+
+        zi=griddata((dfmatrix.columns.tolist(),dfmatrix.index.tolist()),,(xi,yi),method='linear')
+
+
+        #self.test_fit(self.SF,dfmatrix.columns.tolist(),dfmatrix.index.tolist(),matrix_z)
+
+
+
+
+
+
+
     def test_fit(self,SF, x_range, y_range, matrix_z):
         '''
         #=================================================
@@ -51,23 +90,26 @@ class Fit(object):
         '''
         xx,yy,zz=[],[],[]
 
-        for m,n in itertools.product(np.arange(len(x_range),step=2*SF+1),np.arange(len(y_range),step=2*SF+1)):
+        for m,n in itertools.product(np.arange(len(y_range),step=1),np.arange(len(x_range),step=1)):
+            #print(m,n)
             if ~np.isnan(matrix_z.item(m,n)):
 
                 #for s in [-1,0,1]: #forc to select data around
                 try:
                     s=0
                     grid_data = []
-                    a_ = x_range[m]
-                    b_ = y_range[n]
+                    a_ = x_range[n]
+                    b_ = y_range[m]
                     #for i in np.arange(2*SF+1):
                     #    for j in np.arange(2*SF+1):
-                    if ~np.isnan(matrix_z.item(m+SF,n+SF)) and ~np.isnan(matrix_z.item(m+SF,n-SF)):
-                        for i,j in itertools.product(np.arange(-SF,SF,step=1), np.arange(-SF,SF,step=1)):
-                            try:
-                                grid_data.append([x_range[m+i],y_range[n+j],matrix_z.item(m+i,n+j)])
-                            except Exception as e:
-                                pass
+                    #if ~np.isnan(matrix_z.item(m+SF,n+SF)) and ~np.isnan(matrix_z.item(m+SF,n-SF)):
+                    for i,j in itertools.product(np.arange(-SF,SF+1,step=1), np.arange(-SF,SF+1,step=1)):
+                        #print(i,j)
+                        try:
+                            if ~np.isnan(matrix_z.item(m+i,n+j)):
+                                grid_data.append([y_range[m+j],x_range[n+i],matrix_z.item(m+i,n+j)])
+                        except Exception as e:
+                            pass
 
                     #print(grid_data)
                     '''
@@ -79,6 +121,7 @@ class Fit(object):
                     /test_lmf for process data
                     #=================================================
                     '''
+                    #print(len(grid_data))
                     x,y,z = test_lmf(grid_data)
                     try:
                         p = d2_func(x,y,z)
@@ -102,21 +145,21 @@ class Fit(object):
         df = pd.DataFrame({'x':xx,'y':yy,'z':zz})
         #df = df.replace(0,np.nan)
         df = df.dropna()
-        df = df[df['x']>=0]
+        #df = df[df['x']>=0]
         '''
         #=================================================
         /due to the space near Bc = zero
         /the Bi values when Bc <0.003 will be mirrored to -Bc
         #=================================================
         '''
-        #df_negative = df[(df.x<0.003)].copy()
-        #df_negative['x'] = df_negative['x'].apply(lambda x: x*-1)
-        #df_negative.x = df_negative.x*-1
-        #df = df.append(df_negative)
-        #df = df.drop_duplicates(['x','y'])
-        #df = df.sort_values('x')
+        df_negative = df[(df.x<3)].copy()
+        df_negative['x'] = df_negative['x'].apply(lambda x: x*-1)
+        df_negative.x = df_negative.x*-1
+        df = df.append(df_negative)
+        df = df.drop_duplicates(['x','y'])
+        df = df.sort_values('x')
 
-        df.z = reject_outliers(data=df.z)
+        #df.z = reject_outliers(data=df.z)
 
         plt.scatter(df.x,df.y,c=df.z)
         plt.show()
@@ -134,16 +177,20 @@ class Fit(object):
         z = np.asarray(z.tolist())
         zi = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
         #self.Z = zi
+        """
 
         for m in np.arange(5,len(self.xi)-5):
             xarray = zi[:,m]
             xnum = np.count_nonzero(~np.isnan(zi[:,m]))
-            #print(self.xi[:,0][xnum:-1],zi[:,m])
+            print(self.xi[:,0][xnum:-1],zi[:,m][xnum:-1])
             f = np.polyfit(self.xi[:,0][xnum:-1],zi[:,m][xnum:-1],30)
             for i in np.arange(len(self.xi[:,0][xnum:-1])):
                 fx = np.polyval(f,self.xi[:,0][xnum:-1][i])
                 zi[xnum+i,m] = fx
+        """
+
         self.Z = zi
+        self.plot()
         #self.Z = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
         '''
         #=================================================
@@ -162,9 +209,9 @@ class Fit(object):
         fig.subplots_adjust(left=0.18, right=0.97,
                         bottom=0.18, top=0.9, wspace=0.5, hspace=0.5)
         #ax = fig.add_subplot(1,1,1)
-        plt.contour(self.xi*1000,self.yi*1000,self.Z,9,colors='k',linewidths=0.5)#mt to T
+        plt.contour(self.xi,self.yi,self.Z,9,colors='k',linewidths=0.5)#mt to T
         #plt.pcolormesh(X,Y,Z_a,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        plt.pcolormesh(self.xi*1000,self.yi*1000,self.Z,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
+        plt.pcolormesh(self.xi,self.yi,self.Z,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
         plt.colorbar()
         #plt.xlim(0,0.15)
         #plt.ylim(-0.1,0.1)
@@ -182,6 +229,10 @@ def reject_outliers(data, m=1):
             list.append(0)
     return list
 
+
+
+
+
 class dataLoad(object):
     '''
     #=================================================
@@ -192,10 +243,11 @@ class dataLoad(object):
     #=================================================
     '''
     def __init__(self,fileAdres=None):
-        self.rawData(fileAdres)
-        self.matrix()
+        #self.rawData()
+        self.fileAdres = fileAdres
+        #self.matrix()
         #self.rawDataPlot()
-        self.initial()
+        #self.initial()
     def rawDataPlot(self):
         '''
         /plot the measured data
@@ -208,7 +260,8 @@ class dataLoad(object):
         /to transfer the data for fitting
         '''
         return self.matrix_z,self.x_range,self.y_range
-    def rawData(self,fileAdres=None):
+    def rawData(self):
+        fileAdres = self.fileAdres
         #skip skiprows
         skip_from = '    Field         Moment   '
         with open(fileAdres,'rb') as fr:
@@ -243,7 +296,24 @@ class dataLoad(object):
         /x = Hb
         /y = Ha
         /z = Hm
+
         '''
+        H0 = df.H.max() # the maximum field
+        self.x,self.y,self.z=[[],[],[]]
+        for i in np.arange(0,len(H)):
+            dataInterval_H.append(int(H[i]*10000)/10)
+            dataInterval_M.append(M[i])
+            if abs(H[i]-H0)<0.002 and len(dataInterval_M)>1:
+                #print(dataInterval_H[1:])
+                Ha=dataInterval_H[1]
+
+                self.x.extend(dataInterval_H[1::])
+                self.y.extend([Ha]*len(dataInterval_H[1::]))
+                self.z.extend(dataInterval_M[1::])
+
+                dataInterval_H=[]
+                dataInterval_M=[]
+        """
         cretia = df.H.mean()##edge of linear programing for selecting data
         H0 = df.H.max() # the maximum field
         self.x,self.y,self.z=[[],[],[]]
@@ -265,9 +335,32 @@ class dataLoad(object):
                         #print(Ha)
                 dataInterval_H=[]
                 dataInterval_M=[]
+        """
+
+
         #plt.scatter(self.x,self.y,c=self.z)
         #plt.show()
-        self.rawdf = df
+        #print(len(self.x),len(self.y),len(self.z))
+
+        dfraw = pd.DataFrame({"hb":self.x,
+                              "ha":self.y,
+                              "hm":self.z}).drop_duplicates(
+                                  subset=["hb","ha"],
+                                  )
+        #dfmatrix = dfraw.pivot(index="ha",columns="hb",values="hm")
+        #print(dfraw.ha,dfraw.hb)
+        #pd.plotting.scatter_matrix(dfmatrix)
+        #plt.show()
+        #dfraw.to_csv("./dfraw.csv")
+
+        dfraw = dfraw[dfraw["ha"] != dfraw["hb"]]
+
+        #dfraw.to_csv("./dfraw.csv")
+
+        #plt.scatter(self.x,self.y,c=self.z)
+        #plt.show()
+
+        return dfraw
     def matrix(self):
         '''
         #=================================================
@@ -311,9 +404,9 @@ class dataLoad(object):
         /fill every position with Hm, else with np.nan
         #=================================================
         '''
-        X = np.linspace(-0.2,0.3,200)
-        Y = np.linspace(-0.2,0.3,200)
-        xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
+        X = np.linspace(-0.2,0.3,500)
+        Y = np.linspace(-0.2,0.3,500)
+        xi,yi = np.mgrid[-0.2:0.3:500j,-0.2:0.3:500j]
         #Z = matplotlib.mlab.griddata(df.x,df.y,df.z,X,Y,interp='linear')
         #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
 
@@ -342,6 +435,7 @@ class dataLoad(object):
 
         #plt.matshow(zi)
         #plt.show()
+
 
 
 def d2_func(x, y, z):
@@ -373,7 +467,7 @@ def test_lmf(data):
     for i in data:
         a.append(i[0]) #np.array([i[1] for i in data], dtype=np.float64)
         b.append(i[1])#np.array([i[0] for i in data], dtype=np.float64)
-        M.append(i[2])#np.array([i[2] for i in data], dtype=np.float64)
+        M.append(i[2])#np.arrayi([i[2] for i in data], dtype=np.float64)
     a = np.array(a, dtype=np.float64).tolist()
     b = np.array(b, dtype=np.float64).tolist()
     M = np.array(M, dtype=np.float64).tolist()
@@ -385,23 +479,11 @@ def test_lmf(data):
     return a, b, M
 
 def main():
-    #start_time = time.time()
-    fileAdres = sys.argv[1]
-    SF = int(sys.argv[2])
-    SF = SF if isinstance(SF,int) else 5 #defualt SF=5
-    #fileAdres='./ps97-085-3-d472_9.irforc'
-    #Fit(dataLoad(fileAdres),SF).plot()
-    if fileAdres!='':
-        try:
-            Fit(dataLoad(fileAdres),SF).plot()
-            pass
-        except Exception as e:
-            print(e)
-            pass
-    else:
-        print('!input filename and soomth_factor\npyFORC /data_path/forc_file_name.text 5')
-    #end_time = time.time()
-    #print(end_time - start_time)
+    start_time = time.time()
+    #dataLoad("./example/MSM33-60-1-d416_2.irforc")
+    Fit(fileAdres="./example/MSM33-60-1-d416_2.irforc",SF=4)
+    end_time = time.time()
+    print(end_time - start_time)
 
 if __name__ == '__main__':
     main()

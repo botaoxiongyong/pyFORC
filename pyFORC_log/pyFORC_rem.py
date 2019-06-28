@@ -35,69 +35,60 @@ class dataLoad_rem(object):
         #skip skiprows
         skip_from = '    Field         Moment   '
         with open(fileAdres,'rb') as fr:
-            #f = fr.read()
             for i,line in enumerate(fr,1):
-                #print(line)
                 if skip_from in str(line):
-                    skiprows=i+2
+                    skiprows=i+1
                     break
-                #else:
-                #    print('file format wrong, cannot find the data row.')
+                else:
+                    pass
         skiprows = skiprows if isinstance(skiprows,int) else 1
         df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
                          delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python')
+                         engine='python',
+                         skip_blank_lines=False,
+                         dtype=np.float)
 
-        df['H'] = df['H']*1000
-        df['H'] = df['H'].astype(np.int)
-        index = []
-        for i in np.arange(1,len(df['H'])):
-            #print(df['H'][i],df['H'][i-1])
-            if df['H'][i] == df['H'][i-1]:
-                #print('true')
-                index.append(i)
-            else:
-                pass
+        #print(df.iloc[12:33])
 
-        df = df.drop(df.index[index])
-        '''
-        #=================================================
-        /datainterval_H/_M
-        /slice the measured data into pieces
-        /for every measured FORC
-        #=================================================
-        '''
-        dataInterval_H=[]
-        dataInterval_M=[]
-        #print(H)
-        H,M = df['H'].values,df['M'].values
-        satField = df['H'][0]
-        H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg,M_seg = [],[],[],[],[]
-        #print(satField)
-        self.x,self.y,self.z=[[],[],[]]
-        for i in np.arange(1,len(H)-1):
-            if H[i] == 0:
-                H_rem_seg.append(H[i-1])
-                M_rem_seg.append(M[i])
-            else:
-                H_tf_seg.append(H[i])
-                M_tf_seg.append(M[i])
-            if H[i] == satField:
-                H_rem_a = H_rem_seg[1] if len(H_rem_seg)>1 else H_rem_seg[0]
-                #print(H_rem_seg)
-                for t in range(len(H_rem_seg)):
-                    self.x.append(H_rem_seg[t]/1000)
-                    self.y.append(H_rem_a/1000)
-                    self.z.append(M_rem_seg[t])
-                    #self.z.append(M_seg)
+        rows = len(df.index)
+        seg_index=[]
+        for index,row in df.iterrows():
+            if index<rows-2  and np.isnan(row['H']) and np.isnan(df.loc[index+2]['H']):
+                seg_index.append(index+1)
 
-                H_tf_a = H_tf_seg[0]
-                H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg,M_seg = [],[],[],[],[]
 
-        self.rawdf = df
+        H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg = [],[],[],[]
+        tf_a,tf_b,tf_m = [],[],[]
+        rem_a,rem_b,rem_m = [],[],[]
+        #h_a,h_b,h_m=[[],[],[]]
 
-        #plt.scatter(self.x,self.y,c=self.z)
-        #plt.show()
+        for i in np.arange(len(seg_index)-1):
+            df_seg = df.iloc[seg_index[i]:seg_index[i+1]+1]
+            #print(df_seg.index)
+            points = ((seg_index[i+1]+1 - seg_index[i])/3 - 1)/2
+            #print(points)
+            for j in np.arange(points):
+                H_tf_seg.append(df_seg.loc[seg_index[i]+5+j*6]['H'])
+                M_tf_seg.append(df_seg.loc[seg_index[i]+5+j*6]['M'])
+
+                H_rem_seg.append(df_seg.loc[seg_index[i]+5+j*6]['H'])
+                M_rem_seg.append(df_seg.loc[seg_index[i]+8+j*6]['M'])
+
+            #print (H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg)
+            for j in np.arange(points,dtype=np.int):
+                tf_a.append(H_tf_seg[j])
+                tf_b.append(H_tf_seg[0])
+                tf_m.append(M_tf_seg[j])
+
+                rem_a.append(H_rem_seg[j])
+                rem_b.append(H_rem_seg[0])
+                rem_m.append(M_rem_seg[j])
+
+            H_tf_seg,H_rem_seg,M_tf_seg,M_rem_seg = [],[],[],[]
+
+        self.x = rem_a
+        self.y = rem_b
+        self.z = rem_m
 
 
     def matrix(self):
@@ -112,7 +103,7 @@ class dataLoad_rem(object):
         Y = np.linspace(-0.2,0.3,200)
         xi,yi = np.mgrid[-0.2:0.3:200j,-0.2:0.3:200j]
 
-        zi=griddata((self.x,self.y),self.z,(xi,yi),method='cubic')
+        zi=griddata((self.x,self.y),self.z,(xi,yi),method='linear')
         self.matrix_z =zi
         self.x_range=X
         self.y_range=Y

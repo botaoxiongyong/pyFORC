@@ -241,6 +241,9 @@ class Mainwindow(QMainWindow):
 
         self.in_rawData = dataLoad_in(tfraw=self.tf_rawData,remraw=self.rem_rawData)
         self.in_fitData = Fit(irData=self.in_rawData,SF=3)
+        #self.in_fitData = self.rem_fitData
+        #self.in_fitData.Z = np.subtract(self.tf_fitData.Z,self.rem_fitData.Z)
+
 
         self.t_rawData = dataLoad_t(tfraw=self.tf_rawData,irraw=self.ir_rawData)
         self.t_fitData = Fit(irData=self.t_rawData,SF=3)
