@@ -13,6 +13,7 @@ import sys
 import numpy as np
 import itertools
 from matplotlib import pyplot as plt
+import matplotlib.colors as mcolors
 import pandas as pd
 from scipy.interpolate import griddata
 import time
@@ -47,28 +48,40 @@ class Fit(object):
 
         si = [i for i in range(s.shape[0]) if np.isnan(s.iloc[i])]
 
-        #dfmatrix = dfmatrix.drop(dfmatrix.columns[si],axis=1)
+        dfmatrix = dfmatrix.drop(dfmatrix.columns[si],axis=1)
 
         #print(dfmatrix)
+        #"""
+        dfmatrix = dfmatrix.interpolate(method='linear',
+                                        limit_direction='forward',
+                                        limit=20,
+                                        axis=0,
+                                        )
+        #"""
         dfmatrix = dfmatrix.iloc[::-1]
 
-        dfmatrix.to_csv("dfmatrix.csv")
+        #dfmatrix.to_csv("dfmatrix.csv")
         matrix_z = dfmatrix.values
         #print(matrix_z.shape)
         plt.imshow(matrix_z)
         plt.show()
-        print(matrix_z)
+        #print(matrix_z)
 
-        X = np.linspace(-150,150,500)
-        Y = np.linspace(-150,150,500)
-        xi,yi = np.mgrid[-150:150:500j,-150:150:500j]
+        """
+        X = np.linspace(-150,150,100)
+        Y = np.linspace(-150,150,100)
+        yi,xi = np.mgrid[-150:150:100j,-150:150:100j]
         #Z = matplotlib.mlab.griddata(df.x,df.y,df.z,X,Y,interp='linear')
         #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
 
-        zi=griddata((dfmatrix.columns.tolist(),dfmatrix.index.tolist()),,(xi,yi),method='linear')
+        zi=griddata((self.dfraw.hb,self.dfraw.ha),self.dfraw.hm,(xi,yi),method='linear')
+        plt.pcolormesh(yi.T,xi.T,zi)
+        plt.show()
+        """
 
 
-        #self.test_fit(self.SF,dfmatrix.columns.tolist(),dfmatrix.index.tolist(),matrix_z)
+        #self.test_fit(self.SF,X,Y,zi)
+        self.test_fit(self.SF,dfmatrix.columns.tolist(),dfmatrix.index.tolist(),matrix_z)
 
 
 
@@ -161,8 +174,9 @@ class Fit(object):
 
         #df.z = reject_outliers(data=df.z)
 
-        plt.scatter(df.x,df.y,c=df.z)
-        plt.show()
+        #plt.scatter(df.x,df.y,c=df.z)
+        #plt.show()
+
         '''
         #=================================================
         /reset the Bc and Bi range by X,Y
@@ -175,7 +189,29 @@ class Fit(object):
         #self.xi,self.yi = np.mgrid[0:0.2:400j,-0.15:0.15:400j]
         z = df.z/np.max(df.z)
         z = np.asarray(z.tolist())
-        zi = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
+
+        df['z'] = [abs(i) for i in z]#z
+        #df = df[(df['z'] > df['z'].mean()-df['z'].std()) & (df['z'] < df['z'].mean()+df['z'].std())]
+
+        #plt.hist(z,bins=100)
+        plt.hist(df.z,bins=100)
+        plt.show()
+        #print(df.z)
+        plt.scatter(df.x,df.y,c=df.z)
+        plt.show()
+
+        df = df[df['x']>0]
+        
+
+        #zi = griddata((df.x,df.y),df.z,(self.xi,self.yi), method='cubic')
+        dfm = df.pivot(index="y",columns="x",values="z")
+        dfm.to_csv('./dfm.csv')
+
+        plt.imshow(dfm.values)
+        plt.show()
+
+        plt.pcolormesh(dfm.columns.tolist(),dfm.index.tolist(),dfm.values)#vmin=np.min(rho)-0.2)
+        plt.show()
         #self.Z = zi
         """
 
@@ -190,7 +226,7 @@ class Fit(object):
         """
 
         self.Z = zi
-        self.plot()
+        #self.plot()
         #self.Z = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
         '''
         #=================================================
@@ -204,14 +240,15 @@ class Fit(object):
         #print(Z)
         #=================================================
         '''
-    def plot(self):
+    #def plot(self):
         fig = plt.figure(figsize=(6,5), facecolor='white')
         fig.subplots_adjust(left=0.18, right=0.97,
                         bottom=0.18, top=0.9, wspace=0.5, hspace=0.5)
         #ax = fig.add_subplot(1,1,1)
-        plt.contour(self.xi,self.yi,self.Z,9,colors='k',linewidths=0.5)#mt to T
+        norm = mcolors.Normalize(vmin=df['z'].mean()-df['z'].std(),vmax=df['z'].mean()+df['z'].std())
+        plt.contour(self.xi,self.yi,self.Z,9,colors='k',linewidths=0.5,norm=norm)#mt to T
         #plt.pcolormesh(X,Y,Z_a,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        plt.pcolormesh(self.xi,self.yi,self.Z,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
+        plt.pcolormesh(self.xi,self.yi,self.Z,cmap=plt.get_cmap('rainbow'),norm=norm)#vmin=np.min(rho)-0.2)
         plt.colorbar()
         #plt.xlim(0,0.15)
         #plt.ylim(-0.1,0.1)
@@ -291,13 +328,6 @@ class dataLoad(object):
         '''
         dataInterval_H=[]
         dataInterval_M=[]
-        #print(H)
-        '''
-        /x = Hb
-        /y = Ha
-        /z = Hm
-
-        '''
         H0 = df.H.max() # the maximum field
         self.x,self.y,self.z=[[],[],[]]
         for i in np.arange(0,len(H)):
@@ -313,34 +343,6 @@ class dataLoad(object):
 
                 dataInterval_H=[]
                 dataInterval_M=[]
-        """
-        cretia = df.H.mean()##edge of linear programing for selecting data
-        H0 = df.H.max() # the maximum field
-        self.x,self.y,self.z=[[],[],[]]
-        for i in np.arange(1,len(H)):
-            dataInterval_H.append(H[i])
-            dataInterval_M.append(M[i])
-            if abs(H[i]-H0)<=0.001: #when the filed reach the max, a new forc
-                if len(dataInterval_H)>=0 and len(dataInterval_H)<=200:
-                    #print(dataInterval_H)
-                    Ha=dataInterval_H[0]
-                    dataInterval_H.pop(-1)
-                    dataInterval_M.pop(-1)
-                    Hb=dataInterval_H[1:-1]
-                    Hm=dataInterval_M[1:-1]
-                    for t in np.arange(len(Hb)):
-                        self.x.append(Hb[t])
-                        self.y.append(Ha)
-                        self.z.append(Hm[t])
-                        #print(Ha)
-                dataInterval_H=[]
-                dataInterval_M=[]
-        """
-
-
-        #plt.scatter(self.x,self.y,c=self.z)
-        #plt.show()
-        #print(len(self.x),len(self.y),len(self.z))
 
         dfraw = pd.DataFrame({"hb":self.x,
                               "ha":self.y,
@@ -357,85 +359,13 @@ class dataLoad(object):
 
         #dfraw.to_csv("./dfraw.csv")
 
-        #plt.scatter(self.x,self.y,c=self.z)
-        #plt.show()
+        plt.scatter(self.x,self.y,c=self.z)
+        plt.show()
+
+
+
 
         return dfraw
-    def matrix(self):
-        '''
-        #=================================================
-        transfer the data set to matrix as len(x)*len(y) with z value
-        :return:
-        #=================================================
-        '''
-        #df = pd.DataFrame({'x':self.x,'y':self.y,'z':self.z},dtype=np.float)
-        #df = df.sort_values(by=['x','y'])
-        '''
-        #=================================================
-        /this is another method for construct matrix
-        /since irregular FORC in log space
-        #=================================================
-        #x_duplicate = df['x'].drop_duplicates().tolist()
-        #y_duplicate = df['y'].drop_duplicates().tolist()
-        #self.matrix_z = np.zeros(shape=(int(len(x_duplicate)), int(len(y_duplicate))))
-        #for i in np.arange(len(x_duplicate)):
-        #    dx = df[df.x == x_duplicate[i]]
-        #    for j in np.arange(len(y_duplicate)):
-        #        if y_duplicate[j] in dx.y.tolist():
-        #            dxy = dx[dx.y == y_duplicate[j]]
-        #            self.matrix_z[i,j]=dxy['z'].values[0]
-        #        else:
-        #            self.matrix_z[i,j]=0
-        #            pass
-        #self.x_range = x_duplicate
-        #self.y_range = y_duplicate
-        #plt.scatter(df.x,df.y,c=df.z)
-        #plt.show()
-        #=================================================
-        '''
-        #df = df.drop_duplicates(['x','y'])
-        '''
-        #=================================================
-        /mesh up the rawdata
-        /select the data area by X,Y ranges
-        /obtain regular spaced data potins by np.linspace
-        /use interplote to caculate the Hm values
-        /loop Ha(Y),Hb(X)
-        /fill every position with Hm, else with np.nan
-        #=================================================
-        '''
-        X = np.linspace(-0.2,0.3,500)
-        Y = np.linspace(-0.2,0.3,500)
-        xi,yi = np.mgrid[-0.2:0.3:500j,-0.2:0.3:500j]
-        #Z = matplotlib.mlab.griddata(df.x,df.y,df.z,X,Y,interp='linear')
-        #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
-
-        zi=griddata((self.x,self.y),self.z,(xi,yi),method='linear')
-        #plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        #plt.show()
-        '''
-        #=================================================
-        /abandon method to creat matrix_z
-        /due to matplotlib.mlab.gridata expiered
-        /the scipy.gridata can creat matrix,
-        /but note the method used have to be 'linear'
-        #=================================================
-        self.matrix_z = np.zeros(shape=(len(xi),len(yi)))
-        for m in np.arange(0,len(xi)):
-            for n in np.arange(0,len(yi)):
-                if isinstance(zi[m][n],np.NaN):
-                    self.matrix_z[n,m]=zi[m][n]
-                else:
-                    self.matrix_z[n,m]=np.nan
-        #=================================================
-        '''
-        self.matrix_z = zi
-        self.x_range=X
-        self.y_range=Y
-
-        #plt.matshow(zi)
-        #plt.show()
-
 
 
 def d2_func(x, y, z):

@@ -407,23 +407,11 @@ def test_lmf(data):
     return a, b, M
 def main():
     #start_time = time.time()
-    fileAdres = sys.argv[1]
-    SF = int(sys.argv[2])
-    SF = SF if isinstance(SF,int) else 5 #defualt SF=5
-    #fileAdres='./ps97-085-3-d472_9.irforc'
-    #dataLoad_rem(fileAdres)
-    Fit(dataLoad_rem(fileAdres),SF).plot()
-    if fileAdres!='':
-        try:
-            pass
-            #Fit(dataLoad(fileAdres),SF).plot()
-        except Exception as e:
-            print(e)
-            pass
-    else:
-        print('!input filename and soomth_factor\npyFORC /data_path/forc_file_name.text 5')
-    #end_time = time.time()
-    #print(end_time - start_time)
+    start_time = time.time()
+    #dataLoad("./example/MSM33-60-1-d416_2.irforc")
+    dataLoad_rem(fileAdres="./example/MSM33-60-1-d416_2.remforc")
+    end_time = time.time()
+    print(end_time - start_time)
 
 if __name__ == '__main__':
     main()
