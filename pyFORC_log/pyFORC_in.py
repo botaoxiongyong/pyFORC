@@ -44,9 +44,9 @@ class dataLoad_in(object):
                 else:
                     pass
         skiprows = skiprows if isinstance(skiprows,int) else 1
-        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
-                         delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python',
+        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+|,',
+                         names=['H','M'], skipfooter=1,
+                         engine='python',encoding='ISO-8859-15',
                          skip_blank_lines=False,
                          dtype=np.float)
 

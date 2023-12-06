@@ -13,6 +13,7 @@ import sys
 import numpy as np
 import itertools
 from matplotlib import pyplot as plt
+import matplotlib.colors as colors
 import pandas as pd
 from scipy.interpolate import griddata
 import time
@@ -124,30 +125,50 @@ class Forc(object):
         '''
         xrange = [0,int((np.max(df.x)+0.05)*10)/10]
         yrange = [int((np.min(df.y)-0.05)*10)/10,int((np.max(df.y)+0.05)*10)/10]
-        X = np.linspace(xrange[0],xrange[1],200)
-        Y = np.linspace(yrange[0],yrange[1],200)
-        self.yi,self.xi = np.mgrid[yrange[0]:yrange[1]:200j,xrange[0]:xrange[1]:200j]
+        X = np.linspace(xrange[0],xrange[1],500)
+        Y = np.linspace(yrange[0],yrange[1],500)
+        self.yi,self.xi = np.mgrid[yrange[0]:yrange[1]:500j,xrange[0]:xrange[1]:500j]
 
         #self.xi,self.yi = np.mgrid[0:0.2:400j,-0.15:0.15:400j]
         z = df.z/np.max(df.z)
         z = np.asarray(z.tolist())
         self.zi = griddata((df.x,df.y),z,(self.xi,self.yi), method='cubic')
 
-    def plot(self):
-        fig = plt.figure(figsize=(6,5), facecolor='white')
-        fig.subplots_adjust(left=0.18, right=0.97,
-                        bottom=0.18, top=0.9, wspace=0.5, hspace=0.5)
-        #ax = fig.add_subplot(1,1,1)
-        plt.contour(self.xi*1000,self.yi*1000,self.zi,9,colors='k',linewidths=0.5)#mt to T
+    def plot(self,ax=None):
+        if ax==None:
+            fig = plt.figure(figsize=(6,5), facecolor='white')
+            fig.subplots_adjust(left=0.18, right=0.97,
+                            bottom=0.18, top=0.9, wspace=0.5, hspace=0.5)
+            ax = fig.add_subplot(1,1,1)
+
+        colorslist=['#800000','#990000','#cc0000','#ff5050','#ff6600','white','#92c5de','#abdda4','#66c2a5','#3288bd','#542788']
+        colorslist=colorslist[::-1]
+        cm = colors.LinearSegmentedColormap.from_list('', colorslist, N=1000)
+        norm = colors.SymLogNorm(vmin=-1, vmax=1, linthresh=0.7, linscale=2)
+
+        ax.contour(self.xi*1000,self.yi*1000,self.zi,9,colors='k',linewidths=0.5)#mt to T
         #plt.pcolormesh(X,Y,Z_a,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        plt.pcolormesh(self.xi*1000,self.yi*1000,self.zi,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        plt.colorbar()
+        im = ax.pcolormesh(self.xi*1000,self.yi*1000,self.zi,cmap=cm,norm=norm)#vmin=np.min(rho)-0.2)
+        #plt.colorbar(im,)
         #plt.xlim(0,0.15)
         #plt.ylim(-0.1,0.1)
-        plt.xlabel('B$_{c}$ (mT)',fontsize=12)
-        plt.ylabel('B$_{i}$ (mT)',fontsize=12)
+        ax.set_xlabel('B$_{c}$ (mT)',fontsize=12)
+        ax.set_ylabel('B$_{i}$ (mT)',fontsize=12)
 
-        plt.show()
+        pos = ax.get_position()
+        #cbax = ax.twinx()
+        fscale=[1,0]
+        cbax = plt.axes([pos.x0+pos.x0*0.2+fscale[0],pos.y0+0.08+fscale[1],pos.width/40,pos.height/2])
+        #cbax = fig.add_axes([pos.x0+pos.x0*0.2,pos.y0+0.4,pos.width/40,pos.height/2])
+        cb = plt.colorbar(im,cax=cbax)
+        cb.outline.set_visible(False)
+        #cbax.yaxis.set_ticks_position('left')
+        cbax.tick_params(direction='out')
+        cb.ax.text(-1,1.2,r'$\rho/\rho_{max}$',fontsize=10,transform=cbax.transAxes)
+        cb.set_ticks([-1,0,1])
+        cb.set_ticklabels([-1,0,1])
+        #plt.show()
+        return ax,cbax
 
 class dataLoad(object):
     '''
@@ -165,22 +186,36 @@ class dataLoad(object):
         #skip skiprows
         skiprows = None
         skip_from = '    Field         Moment   '
+        skip_from2 = 'Step,Iteration,Segment,Field'
         with open(fileAdres,'rb') as fr:
             #f = fr.read()
             for i,line in enumerate(fr,1):
                 #print(line)
                 if skip_from in str(line):
                     skiprows=i+2
+                    clonume_name = ['H','M']
+                    break
+                elif skip_from2 in str(line):
+                    skiprows=i+1
+                    clonume_name = ['Step','Iteration','H','M','Time Stamp [s]','Field Status','Moment (m) Status']
                     break
                 #else:
+                #    skiprows = 34
+                #    clonume_name = ['H','M']
                 #    print('file format wrong, cannot find the data row.')
-        skiprows = 34 if skiprows==None else skiprows
-        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
-                         delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python')
+        #skiprows = 34 if skiprows==None else skiprows
+        #print(skiprows)
+        if skiprows==None:
+            skiprows = 34
+            clonume_name = ['H','M']
 
-        H = df.H    #measured field
-        M = df.M    #measured magnetic moment
+        #print(skiprows,clonume_name)
+        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+|,',
+                         names=clonume_name, skipfooter=1,
+                         engine='python',encoding='ISO-8859-15')
+        #print(df)
+        H = df['H'].values    #measured field
+        M = df['M'].values    #measured magnetic moment
         '''
         #=================================================
         /datainterval_H/_M
@@ -191,14 +226,16 @@ class dataLoad(object):
         dataInterval_H=[]
         dataInterval_M=[]
         #print(H)
-        cretia = df.H.mean()##edge of linear programing for selecting data
-        H0 = df.H.max() # the maximum field
+        cretia = df['H'].mean()##edge of linear programing for selecting data
+        H0 = np.max(H) # the maximum field
+        #print(H0)
         self.x,self.y,self.z=[[],[],[]]
         for i in np.arange(1,len(H)):
             dataInterval_H.append(H[i])
             dataInterval_M.append(M[i])
+            #print('test',H[i],H0)
             if abs(H[i]-H0)<=0.001: #when the filed reach the max, a new forc
-                if len(dataInterval_H)>=0 and len(dataInterval_H)<=200:
+                if len(dataInterval_H)>=0 and len(dataInterval_H)<=500:
                     #print(dataInterval_H)
                     Ha=dataInterval_H[0]
                     dataInterval_H.pop(-1)
@@ -228,9 +265,9 @@ class dataLoad(object):
         #print(int(np.min(self.x)*100)/100,np.max(self.x))
         xrange = [int((np.min(self.x)-0.1)*10)/10,int((np.max(self.x)+0.1)*10)/10]
         yrange = [int((np.min(self.y)-0.1)*10)/10,int((np.max(self.y)+0.1)*10)/10]
-        X = np.linspace(xrange[0],xrange[1],200)
-        Y = np.linspace(yrange[0],yrange[1],200)
-        yi,xi = np.mgrid[yrange[0]:yrange[1]:200j,xrange[0]:xrange[1]:200j]
+        X = np.linspace(xrange[0],xrange[1],300)
+        Y = np.linspace(yrange[0],yrange[1],300)
+        yi,xi = np.mgrid[yrange[0]:yrange[1]:300j,xrange[0]:xrange[1]:300j]
 
         #X = np.linspace(-0.2,0.3,200)
         #Y = np.linspace(-0.2,0.3,200)

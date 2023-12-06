@@ -41,9 +41,9 @@ class dataLoad_tf(object):
                 else:
                     pass
         skiprows = skiprows if isinstance(skiprows,int) else 1
-        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
-                         delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python',
+        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+|,',
+                        names=['H','M'], skipfooter=1,
+                         engine='python',encoding='ISO-8859-15',
                          skip_blank_lines=False,
                          dtype=np.float)
 
@@ -106,10 +106,11 @@ class dataLoad_tf(object):
         #xi = np.array([self.x,]*200).transpose()
         #yi = np.array([self.y,]*200)'
         df = pd.DataFrame({'x':self.x,'y':self.y,'z':self.z})
+        df = df.set_index(['x','y','z'],append=True)
         df = df.pivot(index='y',columns='x',values='z')
         print(df.columns)
 
-        plt.pcolormesh(x,y,z,cmap=plt.get_cmap('rainbow'))
+        plt.pcolormesh(self.x,self.y,self.z,cmap=plt.get_cmap('rainbow'))
         plt.show()
 
         #X = np.linspace(np.min(self.x),np.max(self.x),200)

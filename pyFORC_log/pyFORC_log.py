@@ -221,9 +221,9 @@ class dataLoad(object):
                 #else:
                 #    print('file format wrong, cannot find the data row.')
         skiprows = skiprows if isinstance(skiprows,int) else 1
-        df = pd.read_csv(fileAdres, skiprows=skiprows, sep='\s+',
-                         delimiter=',', names=['H','M'], skipfooter=1,
-                         engine='python')
+        df = pd.read_csv(fileAdres, skiprows=skiprows, sep=',',
+                         names=['H','M'], skipfooter=1,
+                         engine='python',encoding='ISO-8859-15')
         #print(df)
         #plt.scatter(df['H'],df['M']/df['M'].max())
         #plt.show()
@@ -265,8 +265,8 @@ class dataLoad(object):
                         #print(Ha)
                 dataInterval_H=[]
                 dataInterval_M=[]
-        #plt.scatter(self.x,self.y,c=self.z)
-        #plt.show()
+        plt.scatter(self.x,self.y,c=self.z)
+        plt.show()
         self.rawdf = df
     def matrix(self):
         '''
@@ -318,8 +318,8 @@ class dataLoad(object):
         #zi = griddata((df.x,df.y),df.z,(xi,yi), method='linear')#!!! must linear
 
         zi=griddata((self.x,self.y),self.z,(xi,yi),method='linear')
-        #plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
-        #plt.show()
+        plt.pcolormesh(xi,yi,zi,cmap=plt.get_cmap('rainbow'))#vmin=np.min(rho)-0.2)
+        plt.show()
         '''
         #=================================================
         /abandon method to creat matrix_z
