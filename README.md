@@ -1,8 +1,8 @@
 # pyFORC
-![alt text](https://github.com/botaoxiongyong/pyFORC/blob/master/example/Screenshot%20from%202018-09-11%2013-26-41.png)
+![alt text](https://github.com/botaoxiongyong/pyFORC/blob/master/example/jpyter_example.png)
 
-this is for first order reversal curves
-inlcuding irregualr forc, and remforc (developing)
+This is a Jupyter notebook example for first order reversal curves.
 
-# Warning
-        !not yet ready
+Inlcuding irregualr FORC (measured using XFORC), and normal FORC measured on AGM or VSM
+
+
