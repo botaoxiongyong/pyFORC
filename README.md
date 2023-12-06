@@ -1,5 +1,5 @@
 # pyFORC
-![alt text](https://github.com/botaoxiongyong/pyFORC/jupyter_notebook/example/jpyter_example.png)
+![alt text](https://github.com/botaoxiongyong/pyFORC/tree/Jupyter-notebook/example/jupyter_example.png)
 
 This is a Jupyter notebook example for first order reversal curves.
 
